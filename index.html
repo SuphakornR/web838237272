@@ -1,911 +1,1070 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>NutriTrack — Daily Nutrition Tracker</title>
-<style>
-  :root{
-    --bg: #121317;
-    --surface: #1c1e24;
-    --surface-2: #24272f;
-    --surface-3: #2c2f39;
-    --on-surface: #e7e6ea;
-    --on-surface-variant: #a7a9b4;
-    --outline: #3a3d47;
-
-    --calories: #ffb648;
-    --protein: #7fd8a0;
-    --carbs: #7db9ff;
-    --fats: #f38fb0;
-
-    --primary: #b9c3ff;
-    --on-primary: #1a2264;
-    --danger: #ff8a80;
-
-    --radius-lg: 28px;
-    --radius-md: 20px;
-    --radius-sm: 14px;
-
-    --ease: cubic-bezier(0.2, 0, 0, 1);
-  }
-
-  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
-  html, body{
-    margin:0; padding:0;
-    background: var(--bg);
-    color: var(--on-surface);
-    font-family: 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
-    overscroll-behavior-y: none;
-  }
-
-  body{
-    display:flex;
-    justify-content:center;
-    min-height: 100vh;
-  }
-
-  .app{
-    width: 100%;
-    max-width: 480px;
-    min-height: 100vh;
-    padding: 20px 16px 40px;
-    position: relative;
-  }
-
-  header.top{
-    padding: 8px 4px 20px;
-  }
-  header.top h1{
-    font-size: 22px;
-    font-weight: 700;
-    margin: 0;
-    letter-spacing: 0.2px;
-  }
-  header.top p{
-    margin: 4px 0 0;
-    color: var(--on-surface-variant);
-    font-size: 13px;
-  }
-
-  /* ---------- Dashboard Card ---------- */
-  .dashboard{
-    background: linear-gradient(180deg, var(--surface-2), var(--surface));
-    border-radius: var(--radius-lg);
-    padding: 24px 20px;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap: 18px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.35);
-    transition: box-shadow 0.3s var(--ease);
-  }
-
-  .ring-wrap{
-    position: relative;
-    width: 200px;
-    height: 200px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-  }
-
-  .ring-wrap svg{
-    width: 100%;
-    height: 100%;
-    transform: rotate(-90deg);
-  }
-
-  .ring-bg{
-    fill: none;
-    stroke: var(--surface-3);
-    stroke-width: 12;
-  }
-
-  .ring-fg{
-    fill: none;
-    stroke: var(--calories);
-    stroke-width: 12;
-    stroke-linecap: round;
-    transition: stroke-dashoffset 0.8s var(--ease), stroke 0.4s var(--ease);
-  }
-
-  .ring-center{
-    position:absolute;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    text-align:center;
-  }
-
-  .ring-center .value{
-    font-size: 34px;
-    font-weight: 800;
-    line-height: 1;
-    transition: color 0.3s var(--ease);
-    font-variant-numeric: tabular-nums;
-  }
-  .ring-center .of{
-    font-size: 12px;
-    color: var(--on-surface-variant);
-    margin-top: 6px;
-  }
-  .ring-center .rem{
-    font-size: 11px;
-    margin-top: 4px;
-    padding: 2px 10px;
-    border-radius: 20px;
-    background: var(--surface-3);
-    color: var(--on-surface-variant);
-    transition: background 0.3s var(--ease), color 0.3s var(--ease);
-  }
-  .ring-center .rem.over{
-    background: rgba(255,138,128,0.15);
-    color: var(--danger);
-  }
-
-  .macro-row{
-    width:100%;
-    display:flex;
-    gap: 10px;
-  }
-
-  .macro-card{
-    flex:1;
-    background: var(--surface-2);
-    border-radius: var(--radius-md);
-    padding: 12px 10px 14px;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap: 8px;
-    transition: transform 0.2s var(--ease);
-  }
-
-  .macro-label{
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    color: var(--on-surface-variant);
-  }
-
-  .macro-bar-track{
-    width: 100%;
-    height: 8px;
-    border-radius: 8px;
-    background: var(--surface-3);
-    overflow: hidden;
-  }
-
-  .macro-bar-fill{
-    height: 100%;
-    border-radius: 8px;
-    width: 0%;
-    transition: width 0.7s var(--ease), background 0.3s var(--ease);
-  }
-
-  .macro-num{
-    font-size: 13px;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-  }
-  .macro-num span{
-    font-weight: 400;
-    color: var(--on-surface-variant);
-    font-size: 11px;
-  }
-
-  .macro-card.protein .macro-bar-fill{ background: var(--protein); }
-  .macro-card.carbs .macro-bar-fill{ background: var(--carbs); }
-  .macro-card.fats .macro-bar-fill{ background: var(--fats); }
-
-  /* ---------- Section headers ---------- */
-  .section-title{
-    margin: 28px 4px 12px;
-    font-size: 15px;
-    font-weight: 700;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-  }
-  .section-title .badge{
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--on-surface-variant);
-    background: var(--surface-2);
-    padding: 3px 10px;
-    border-radius: 20px;
-  }
-
-  /* ---------- Quick Add Form ---------- */
-  .form-card{
-    background: var(--surface);
-    border-radius: var(--radius-lg);
-    padding: 20px 16px;
-    box-shadow: 0 6px 24px rgba(0,0,0,0.3);
-  }
-
-  .field{
-    position: relative;
-    margin-bottom: 22px;
-  }
-  .field input{
-    width: 100%;
-    padding: 16px 14px 8px;
-    background: var(--surface-2);
-    border: 1.5px solid transparent;
-    border-radius: var(--radius-sm);
-    color: var(--on-surface);
-    font-size: 15px;
-    outline: none;
-    transition: border-color 0.25s var(--ease), background 0.25s var(--ease);
-    -moz-appearance: textfield;
-  }
-  .field input::-webkit-outer-spin-button,
-  .field input::-webkit-inner-spin-button{
-    -webkit-appearance: none;
-    margin: 0;
-  }
-  .field input:focus{
-    border-color: var(--primary);
-    background: var(--surface-3);
-  }
-  .field label{
-    position: absolute;
-    left: 14px;
-    top: 16px;
-    font-size: 15px;
-    color: var(--on-surface-variant);
-    pointer-events: none;
-    transform-origin: left top;
-    transition: transform 0.22s var(--ease), color 0.22s var(--ease), top 0.22s var(--ease);
-  }
-  .field input:focus + label,
-  .field input.filled + label{
-    top: 6px;
-    transform: scale(0.72);
-    color: var(--primary);
-  }
-
-  .field-row{
-    display:flex;
-    gap: 10px;
-  }
-  .field-row .field{
-    flex:1;
-  }
-
-  .macro-dot{
-    display:inline-block;
-    width:8px;
-    height:8px;
-    border-radius:50%;
-    margin-right:6px;
-    vertical-align:middle;
-  }
-
-  button{
-    font-family: inherit;
-    cursor:pointer;
-    border:none;
-  }
-
-  .btn-add{
-    width: 100%;
-    padding: 15px;
-    border-radius: var(--radius-sm);
-    background: var(--primary);
-    color: var(--on-primary);
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 0.3px;
-    transition: transform 0.15s var(--ease), box-shadow 0.2s var(--ease), opacity 0.2s;
-    box-shadow: 0 4px 14px rgba(185,195,255,0.25);
-  }
-  .btn-add:active{
-    transform: scale(0.96);
-    box-shadow: 0 2px 6px rgba(185,195,255,0.2);
-  }
-  .btn-add:disabled{
-    opacity: 0.4;
-    box-shadow: none;
-  }
-
-  /* ---------- History List ---------- */
-  .history-list{
-    display:flex;
-    flex-direction:column;
-    gap: 10px;
-    max-height: 420px;
-    overflow-y: auto;
-    padding-right: 2px;
-  }
-
-  .history-empty{
-    text-align:center;
-    color: var(--on-surface-variant);
-    font-size: 13px;
-    padding: 36px 10px;
-    background: var(--surface);
-    border-radius: var(--radius-md);
-    border: 1.5px dashed var(--outline);
-  }
-
-  .item{
-    background: var(--surface);
-    border-radius: var(--radius-md);
-    padding: 14px 14px;
-    display:flex;
-    align-items:center;
-    gap: 12px;
-    box-shadow: 0 3px 12px rgba(0,0,0,0.22);
-    animation: slideIn 0.4s var(--ease);
-    transition: transform 0.3s var(--ease), opacity 0.3s var(--ease), max-height 0.35s var(--ease), margin 0.35s var(--ease), padding 0.35s var(--ease);
-    overflow: hidden;
-  }
-
-  .item.removing{
-    transform: translateX(110%);
-    opacity: 0;
-    max-height: 0;
-    padding-top:0;
-    padding-bottom:0;
-    margin-bottom: -10px;
-    border: none;
-  }
-
-  @keyframes slideIn{
-    from{ opacity:0; transform: translateY(14px) scale(0.98); }
-    to{ opacity:1; transform: translateY(0) scale(1); }
-  }
-
-  .item-icon{
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
-    background: var(--surface-3);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--primary);
-    flex-shrink: 0;
-  }
-
-  .item-body{
-    flex: 1;
-    min-width: 0;
-  }
-  .item-name{
-    font-size: 14.5px;
-    font-weight: 700;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .item-macros{
-    margin-top: 4px;
-    font-size: 11.5px;
-    color: var(--on-surface-variant);
-    display:flex;
-    gap: 10px;
-  }
-  .item-macros span{ white-space: nowrap; }
-
-  .item-cal{
-    font-size: 15px;
-    font-weight: 800;
-    color: var(--calories);
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-  .item-cal small{
-    display:block;
-    font-size: 9.5px;
-    font-weight: 500;
-    color: var(--on-surface-variant);
-    text-align: right;
-  }
-
-  .btn-del{
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    background: var(--surface-2);
-    color: var(--on-surface-variant);
-    font-size: 16px;
-    flex-shrink: 0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    transition: transform 0.15s var(--ease), background 0.2s var(--ease), color 0.2s var(--ease);
-  }
-  .btn-del:active{
-    transform: scale(0.85);
-    background: rgba(255,138,128,0.18);
-    color: var(--danger);
-  }
-
-  /* ---------- Target editor ---------- */
-  .target-edit{
-    display:flex;
-    align-items:center;
-    gap: 8px;
-    background: var(--surface-2);
-    border-radius: 20px;
-    padding: 6px 6px 6px 14px;
-    font-size: 12px;
-    color: var(--on-surface-variant);
-  }
-  .target-edit input{
-    width: 60px;
-    background: transparent;
-    border: none;
-    color: var(--on-surface);
-    font-size: 13px;
-    font-weight: 700;
-    outline: none;
-    text-align: right;
-  }
-  .target-edit button{
-    background: var(--surface-3);
-    color: var(--on-surface);
-    border-radius: 16px;
-    padding: 6px 12px;
-    font-size: 11.5px;
-    font-weight: 700;
-    transition: transform 0.15s var(--ease);
-  }
-  .target-edit button:active{ transform: scale(0.92); }
-
-  ::-webkit-scrollbar{ width: 6px; }
-  ::-webkit-scrollbar-thumb{ background: var(--surface-3); border-radius: 6px; }
-
-  .toast{
-    position: fixed;
-    left: 50%;
-    bottom: 28px;
-    transform: translateX(-50%) translateY(20px);
-    background: var(--surface-3);
-    color: var(--on-surface);
-    padding: 12px 20px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 600;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s var(--ease), transform 0.3s var(--ease);
-    z-index: 50;
-    white-space: nowrap;
-  }
-  .toast.show{
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-
-  @media (prefers-reduced-motion: reduce){
-    *{ animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>7-11 Product Tracker & Shelf Management</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .modal-fade { transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out; }
+    </style>
 </head>
-<body>
-<div class="app">
+<body class="bg-gray-50 text-gray-800 min-h-screen font-sans">
 
-  <header class="top">
-    <h1>NutriTrack</h1>
-    <p id="dateLabel">Today</p>
-  </header>
+    <div class="flex flex-col h-screen overflow-hidden">
+        
+        <header class="bg-gradient-to-r from-emerald-600 to-green-500 text-white shadow-md px-6 py-4 flex justify-between items-center z-10">
+            <div class="flex items-center space-x-3">
+                <div class="bg-white p-2 rounded-lg text-emerald-600 font-bold text-xl tracking-wider shadow">7-11</div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">Product Tracker</h1>
+                    <p class="text-xs text-emerald-100">Visual Shelf Management System</p>
+                </div>
+            </div>
+            
+            <div class="flex bg-emerald-700/50 p-1 rounded-xl border border-emerald-500/30">
+                <button id="mode-checkout-btn" onclick="setOpMode('checkout')" class="flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 scale-100 hover:scale-105 active:scale-95 bg-white text-emerald-700 shadow-sm">
+                    <i data-lucide="shopping-cart" class="w-4 h-4"></i>
+                    <span>Checkout Mode</span>
+                </button>
+                <button id="mode-inventory-btn" onclick="setOpMode('inventory')" class="flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 scale-100 hover:scale-105 active:scale-95 text-emerald-100 hover:text-white ml-1">
+                    <i data-lucide="package" class="w-4 h-4"></i>
+                    <span>Inventory Mode</span>
+                </button>
+            </div>
+        </header>
 
-  <!-- Dashboard -->
-  <section class="dashboard">
-    <div class="ring-wrap">
-      <svg viewBox="0 0 200 200">
-        <circle class="ring-bg" cx="100" cy="100" r="86"></circle>
-        <circle class="ring-fg" id="ringFg" cx="100" cy="100" r="86"
-                stroke-dasharray="540.4" stroke-dashoffset="540.4"></circle>
-      </svg>
-      <div class="ring-center">
-        <div class="value" id="calValue">0</div>
-        <div class="of">of <span id="calTargetLabel">2000</span> kcal</div>
-        <div class="rem" id="remBadge">0 left</div>
-      </div>
+        <div class="flex flex-1 overflow-hidden">
+            
+            <aside class="w-64 bg-white border-r border-gray-200 flex flex-col justify-between">
+                <nav class="p-4 space-y-2">
+                    <button onclick="switchTab('scanner-tab')" id="nav-scanner-tab" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left font-medium transition-all duration-200 bg-emerald-50 text-emerald-600 border border-emerald-100">
+                        <i data-lucide="scan-barcode"></i><span>Scanner & Operations</span>
+                    </button>
+                    <button onclick="switchTab('shelves-tab')" id="nav-shelves-tab" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left font-medium transition-all duration-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900">
+                        <i data-lucide="layers"></i><span>Visual Shelf Layout</span>
+                    </button>
+                    <button onclick="switchTab('products-tab')" id="nav-products-tab" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left font-medium transition-all duration-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900">
+                        <i data-lucide="database"></i><span>Product Master Data</span>
+                    </button>
+                </nav>
+
+                <div class="p-4 border-t border-gray-100 bg-gray-50 space-y-2">
+                    <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2">Data Management</div>
+                    <button onclick="backupDatabase()" class="w-full flex items-center justify-between text-left text-sm text-gray-700 hover:bg-white hover:text-emerald-600 p-2.5 rounded-lg border border-transparent hover:border-gray-200 transition-all duration-200 shadow-xs">
+                        <span class="flex items-center space-x-2"><i data-lucide="download" class="w-4 h-4 text-gray-400"></i><span>Backup (JSON)</span></span>
+                        <i data-lucide="chevron-right" class="w-3 h-3 text-gray-300"></i>
+                    </button>
+                    <button onclick="exportCSV()" class="w-full flex items-center justify-between text-left text-sm text-gray-700 hover:bg-white hover:text-emerald-600 p-2.5 rounded-lg border border-transparent hover:border-gray-200 transition-all duration-200 shadow-xs">
+                        <span class="flex items-center space-x-2"><i data-lucide="file-spreadsheet" class="w-4 h-4 text-gray-400"></i><span>Export Product CSV</span></span>
+                        <i data-lucide="chevron-right" class="w-3 h-3 text-gray-300"></i>
+                    </button>
+                </div>
+            </aside>
+
+            <main class="flex-1 overflow-y-auto p-6 bg-gray-50">
+                
+                <section id="scanner-tab" class="tab-content space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        
+                        <div class="lg:col-span-2 bg-white rounded-2xl shadow-xs border border-gray-200 overflow-hidden flex flex-col">
+                            <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/70">
+                                <h2 class="font-bold text-gray-700 flex items-center space-x-2">
+                                    <i data-lucide="camera" class="w-5 h-5 text-emerald-600"></i>
+                                    <span>Live Stream Camera Scanner</span>
+                                </h2>
+                                <span id="active-mode-badge" class="px-2.5 py-1 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full border border-amber-200 shadow-2xs">Checkout Active</span>
+                            </div>
+                            
+                            <div class="p-4 bg-gray-900 relative aspect-video flex flex-col items-center justify-center text-white">
+                                <div id="reader" class="w-full h-full max-h-[360px] rounded-lg overflow-hidden"></div>
+                                <div id="scanner-placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 space-y-3 z-5">
+                                    <div class="p-4 bg-gray-800 rounded-full text-gray-400 border border-gray-700 animate-pulse"><i data-lucide="scan-barcode" class="w-10 h-10"></i></div>
+                                    <p class="text-sm font-medium text-gray-400">Camera Engine Offline</p>
+                                </div>
+                            </div>
+
+                            <div class="p-4 bg-gray-50 border-t border-gray-100 grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <button id="start-scan-btn" onclick="toggleScanner()" class="flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-700 hover:-translate-y-0.5 text-white py-2.5 px-4 rounded-xl text-sm font-medium transition-all duration-300 shadow-md shadow-emerald-600/10 active:scale-95">
+                                    <i data-lucide="play" class="w-4 h-4"></i><span id="scan-btn-text">Start Scanner</span>
+                                </button>
+                                <button onclick="switchCamera()" class="flex items-center justify-center space-x-2 bg-white hover:bg-gray-100 text-gray-700 py-2.5 px-4 rounded-xl text-sm font-medium border border-gray-200 shadow-2xs hover:-translate-y-0.5 transition-all duration-300 active:scale-95">
+                                    <i data-lucide="refresh-cw" class="w-4 h-4"></i><span>Switch Cam</span>
+                                </button>
+                                <button id="torch-btn" onclick="toggleTorch()" class="flex items-center justify-center space-x-2 bg-white text-gray-400 py-2.5 px-4 rounded-xl text-sm font-medium border border-gray-200 shadow-2xs cursor-not-allowed transition-all duration-300" disabled>
+                                    <i data-lucide="zap" class="w-4 h-4"></i><span>Flashlight</span>
+                                </button>
+                                <div class="relative col-span-2 md:col-span-1">
+                                    <input type="text" id="manual-barcode" placeholder="Manual Barcode Entry..." class="w-full pl-3 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200 shadow-2xs">
+                                    <button onclick="handleManualSubmit()" class="absolute right-1.5 top-1.5 bg-emerald-50 text-emerald-600 p-1.5 rounded-lg hover:bg-emerald-100 transition-colors"><i data-lucide="corner-down-left" class="w-4 h-4"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl shadow-xs border border-gray-200 flex flex-col h-full min-h-[400px]">
+                            <div class="p-4 border-b border-gray-100 bg-gray-50/70 font-bold text-gray-700 flex items-center space-x-2">
+                                <i data-lucide="clipboard-list" class="w-5 h-5 text-emerald-600"></i>
+                                <span id="ops-panel-title">Active Checkout Terminal</span>
+                            </div>
+                            
+                            <div id="checkout-view" class="flex-1 flex flex-col p-4 overflow-hidden">
+                                <div class="flex-1 overflow-y-auto space-y-3 pr-1" id="cart-items-container">
+                                    <div class="h-full flex flex-col items-center justify-center text-gray-400 py-12 space-y-2">
+                                        <i data-lucide="shopping-bag" class="w-12 h-12 stroke-1 text-gray-300 animate-bounce"></i>
+                                        <p class="text-sm font-medium">Cart is currently empty</p>
+                                        <p class="text-xs text-gray-400">Scan a barcode to add item</p>
+                                    </div>
+                                </div>
+                                <div class="border-t border-gray-100 pt-4 mt-2 space-y-3">
+                                    <div class="flex justify-between items-baseline">
+                                        <span class="text-sm font-medium text-gray-500">Total Basket Value</span>
+                                        <span id="cart-total" class="text-2xl font-black text-gray-900">฿0.00</span>
+                                    </div>
+                                    <button onclick="clearCart()" class="w-full bg-gray-900 hover:bg-gray-800 text-white font-medium py-3 rounded-xl shadow-md transition-all duration-300 hover:-translate-y-0.5 active:scale-95 flex items-center justify-center space-x-2">
+                                        <i data-lucide="check-circle" class="w-4 h-4"></i><span>Complete Checkout & Print</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="inventory-view" class="flex-1 flex flex-col p-6 items-center justify-center text-center hidden">
+                                <div id="inv-empty-state" class="space-y-3 text-gray-400">
+                                    <i data-lucide="package-search" class="w-16 h-16 mx-auto stroke-1 text-gray-300"></i>
+                                    <h3 class="font-semibold text-gray-700">Awaiting Product Scan</h3>
+                                    <p class="text-xs max-w-xs mx-auto">Scan barcodes or input manual entry parameters to inspect metrics, adjust current stocks, or update telemetry logs.</p>
+                                </div>
+                                
+                                <div id="inv-active-state" class="hidden w-full space-y-6">
+                                    <div class="flex items-center space-x-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                        <img id="inv-prod-img" class="w-16 h-16 object-cover rounded-lg bg-gray-200 border border-gray-300" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23ccc' stroke-width='2'><rect x='3' y='3' width='18' height='18' rx='2' ry='2'/><circle cx='8.5' cy='8.5' r='1.5'/><polyline points='21 15 16 10 5 21'/></svg>">
+                                        <div class="text-left flex-1 min-w-0">
+                                            <h4 id="inv-prod-name" class="font-bold text-gray-900 truncate">Product View</h4>
+                                            <p id="inv-prod-barcode" class="text-xs text-gray-400 font-mono">0000000</p>
+                                            <p id="inv-prod-loc" class="text-xs font-medium text-emerald-600 mt-1">Aisle > Shelf</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="bg-gray-50 rounded-2xl p-4 border border-gray-100 flex justify-between items-center">
+                                        <span class="text-sm font-semibold text-gray-500">Stock Count</span>
+                                        <div class="flex items-center space-x-3">
+                                            <button onclick="adjustInvStock(-1)" class="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-600 shadow-2xs hover:bg-gray-100 hover:text-gray-900 transition-all duration-200 font-bold active:scale-95 hover:-translate-y-0.5">-</button>
+                                            <span id="inv-prod-stock" class="text-2xl font-black text-gray-800 w-12 text-center">0</span>
+                                            <button onclick="adjustInvStock(1)" class="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-600 shadow-2xs hover:bg-gray-100 hover:text-gray-900 transition-all duration-200 font-bold active:scale-95 hover:-translate-y-0.5">+</button>
+                                        </div>
+                                    </div>
+                                    <button onclick="resetInventoryView()" class="w-full py-2.5 text-xs font-semibold text-gray-400 bg-gray-100 hover:bg-gray-200/70 hover:text-gray-600 rounded-xl transition-all duration-200">Clear Active Focus</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="shelves-tab" class="tab-content space-y-6 hidden">
+                    <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-xs flex flex-wrap gap-4 items-center justify-between">
+                        <div class="flex items-center space-x-4 flex-1 min-w-[280px]">
+                            <div class="w-1/2">
+                                <label class="block text-xs font-bold text-gray-400 uppercase mb-1 tracking-wider">Select Layout Zone</label>
+                                <select id="shelf-view-aisle-select" onchange="renderVisualShelves()" class="w-full py-2 px-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white shadow-2xs"></select>
+                            </div>
+                            <div class="flex items-end h-full pt-5">
+                                <button onclick="openAisleModal()" class="flex items-center space-x-2 bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-2 rounded-xl text-sm font-medium hover:bg-emerald-100 transition-all duration-200 hover:-translate-y-0.5 active:scale-95">
+                                    <i data-lucide="plus" class="w-4 h-4"></i><span>Manage Zones</span>
+                                </button>
+                            </div>
+                        </div>
+                        <button onclick="openShelfModal()" class="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 shadow-md shadow-emerald-600/10 hover:-translate-y-0.5 active:scale-95">
+                            <i data-lucide="plus-circle" class="w-4 h-4"></i><span>Add New Physical Shelf Row</span>
+                        </button>
+                    </div>
+
+                    <div id="shelves-display-matrix" class="space-y-8">
+                        </div>
+                </section>
+
+                <section id="products-tab" class="tab-content space-y-6 hidden">
+                    <div class="bg-white rounded-2xl shadow-xs border border-gray-200 overflow-hidden">
+                        <div class="p-4 border-b border-gray-100 bg-gray-50/70 flex flex-wrap gap-4 justify-between items-center">
+                            <h2 class="font-bold text-gray-700 flex items-center space-x-2"><i data-lucide="database" class="w-5 h-5 text-emerald-600"></i><span>Global Inventory Registry</span></h2>
+                            <div class="w-full sm:w-64 relative">
+                                <input type="text" id="prod-search-input" oninput="renderMasterProductsTable()" placeholder="Search via name or barcode..." class="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs">
+                                <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-3"></i>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-gray-50/50 text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                                        <th class="py-3 px-6">Product Metadata</th>
+                                        <th class="py-3 px-6">Barcode</th>
+                                        <th class="py-3 px-6">Assigned Matrix Node</th>
+                                        <th class="py-3 px-6 text-right">Price Valuation</th>
+                                        <th class="py-3 px-6 text-center">In-Stock Quant</th>
+                                        <th class="py-3 px-6 text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="master-table-body" class="divide-y divide-gray-100 text-sm">
+                                    </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
     </div>
 
-    <div class="target-edit">
-      <span>Daily target</span>
-      <input type="number" id="targetInput" value="2000" min="500" step="50">
-      <button id="saveTargetBtn">Set</button>
+    <div id="product-modal" class="fixed inset-0 z-50 flex items-center justify-center opacity-0 pointer-events-none modal-fade bg-black/50 backdrop-blur-xs p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden transform scale-95 transition-all duration-300 flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                <h3 class="font-bold text-gray-800 flex items-center space-x-2"><i data-lucide="package-plus" class="text-emerald-600"></i><span>Scan & Build: New Product Entry</span></h3>
+                <button onclick="closeProductModal()" class="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-4 flex-1">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="col-span-2">
+                        <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Assigned Barcode</label>
+                        <input type="text" id="modal-barcode" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl font-mono text-sm focus:outline-none" readonly>
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Product Name *</label>
+                        <input type="text" id="modal-name" placeholder="e.g. Oishi Green Tea Honey Lemon 500ml" class="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-2xs">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Retail Price (THB) *</label>
+                        <input type="number" id="modal-price" step="0.25" placeholder="20.00" class="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-2xs">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Initial Opening Stock *</label>
+                        <input type="number" id="modal-stock" placeholder="24" class="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-2xs">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Target Storage Zone</label>
+                        <select id="modal-aisle" onchange="populateModalShelves()" class="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 bg-white focus:outline-none shadow-2xs"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Target Grid Row Selection</label>
+                        <select id="modal-shelf" class="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 bg-white focus:outline-none shadow-2xs"></select>
+                    </div>
+                </div>
+                
+                <div class="border-t border-gray-100 pt-4">
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Product Imagery Assets</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="border-2 border-dashed border-gray-200 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-gray-50 relative min-h-[120px]">
+                            <input type="file" id="modal-file-upload" accept="image/*" onchange="handleFileUpload(event)" class="absolute inset-0 opacity-0 cursor-pointer">
+                            <i data-lucide="upload-cloud" class="w-6 h-6 text-gray-400 mb-1"></i>
+                            <span class="text-xs font-semibold text-gray-600">Local Upload File</span>
+                            <span class="text-[10px] text-gray-400 mt-0.5">JPEG, PNG inside IndexedDB</span>
+                        </div>
+                        <div onclick="captureScannerSnapshot()" class="border-2 border-dashed border-emerald-100 hover:border-emerald-300 rounded-xl p-3 flex flex-col items-center justify-center text-center bg-emerald-50/40 hover:bg-emerald-50 cursor-pointer transition-colors min-h-[120px]">
+                            <i data-lucide="aperture" class="w-6 h-6 text-emerald-600 mb-1"></i>
+                            <span class="text-xs font-semibold text-emerald-700">Snapshot Video Feed</span>
+                            <span class="text-[10px] text-emerald-500 mt-0.5">Grab active frame canvas</span>
+                        </div>
+                    </div>
+                    <div id="modal-img-preview-box" class="hidden mt-3 p-2 bg-gray-50 border border-gray-200 rounded-xl flex items-center space-x-3">
+                        <img id="modal-preview-src" class="w-14 h-14 object-cover rounded-lg shadow-2xs border border-gray-300">
+                        <div class="flex-1 min-w-0"><p class="text-xs font-semibold text-gray-700 truncate">asset_attached.png</p><p class="text-[10px] text-emerald-600 flex items-center"><i data-lucide="check" class="w-3 h-3 mr-0.5"></i>Compressed Data Uniform Ready</p></div>
+                        <button onclick="clearModalImage()" class="text-gray-400 hover:text-red-500 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 border-t border-gray-100 bg-gray-50 flex space-x-3">
+                <button onclick="closeProductModal()" class="flex-1 py-2.5 text-sm font-semibold text-gray-500 hover:bg-gray-200/60 rounded-xl transition-colors">Abort</button>
+                <button onclick="saveProductFromModal()" class="flex-1 py-2.5 text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md transition-all duration-200 active:scale-95">Commit Registry Entry</button>
+            </div>
+        </div>
     </div>
 
-    <div class="macro-row">
-      <div class="macro-card protein">
-        <div class="macro-label"><span class="macro-dot" style="background:var(--protein)"></span>Protein</div>
-        <div class="macro-bar-track"><div class="macro-bar-fill" id="proteinBar"></div></div>
-        <div class="macro-num"><span id="proteinVal">0</span>g <span>/ <span id="proteinTarget">120</span>g</span></div>
-      </div>
-      <div class="macro-card carbs">
-        <div class="macro-label"><span class="macro-dot" style="background:var(--carbs)"></span>Carbs</div>
-        <div class="macro-bar-track"><div class="macro-bar-fill" id="carbsBar"></div></div>
-        <div class="macro-num"><span id="carbsVal">0</span>g <span>/ <span id="carbsTarget">250</span>g</span></div>
-      </div>
-      <div class="macro-card fats">
-        <div class="macro-label"><span class="macro-dot" style="background:var(--fats)"></span>Fats</div>
-        <div class="macro-bar-track"><div class="macro-bar-fill" id="fatsBar"></div></div>
-        <div class="macro-num"><span id="fatsVal">0</span>g <span>/ <span id="fatsTarget">65</span>g</span></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Quick Add Form -->
-  <div class="section-title">Quick Add</div>
-  <form class="form-card" id="addForm">
-    <div class="field">
-      <input type="text" id="foodName" autocomplete="off" required>
-      <label for="foodName">Food name</label>
+    <div id="aisle-modal" class="fixed inset-0 z-50 flex items-center justify-center opacity-0 pointer-events-none modal-fade bg-black/50 backdrop-blur-xs p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform scale-95 transition-all duration-300">
+            <div class="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                <h3 class="font-bold text-gray-800 flex items-center space-x-2"><i data-lucide="settings" class="text-emerald-600"></i><span>Manage Storage Zones (Aisles)</span></h3>
+                <button onclick="closeAisleModal()" class="text-gray-400 hover:text-gray-600 p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="flex space-x-2">
+                    <input type="text" id="new-aisle-name" placeholder="e.g. Drink Zone Nord" class="flex-1 p-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <button onclick="createAisle()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 active:scale-95"><i data-lucide="plus" class="w-5 h-5"></i></button>
+                </div>
+                <div id="aisle-manager-list" class="max-h-[200px] overflow-y-auto divide-y divide-gray-100 border border-gray-100 rounded-xl p-2 bg-gray-50/50">
+                    </div>
+            </div>
+        </div>
     </div>
 
-    <div class="field-row">
-      <div class="field">
-        <input type="number" id="foodCal" min="0" step="1" autocomplete="off" required>
-        <label for="foodCal">Calories</label>
-      </div>
-      <div class="field">
-        <input type="number" id="foodProtein" min="0" step="0.1" autocomplete="off">
-        <label for="foodProtein">Protein (g)</label>
-      </div>
+    <div id="shelf-modal" class="fixed inset-0 z-50 flex items-center justify-center opacity-0 pointer-events-none modal-fade bg-black/50 backdrop-blur-xs p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform scale-95 transition-all duration-300">
+            <div class="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                <h3 class="font-bold text-gray-800 flex items-center space-x-2"><i data-lucide="layers" class="text-emerald-600"></i><span>Append Shelf Row Matrix</span></h3>
+                <button onclick="closeShelfModal()" class="text-gray-400 hover:text-gray-600 p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Target Zone Parent</label>
+                    <select id="shelf-modal-aisle-select" class="w-full p-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Shelf Level Name Identifier</label>
+                    <div class="flex space-x-2">
+                        <input type="text" id="new-shelf-name" placeholder="e.g. Level Tier 1" class="flex-1 p-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <button onclick="createShelf()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 active:scale-95">Append</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="field-row">
-      <div class="field">
-        <input type="number" id="foodCarbs" min="0" step="0.1" autocomplete="off">
-        <label for="foodCarbs">Carbs (g)</label>
-      </div>
-      <div class="field">
-        <input type="number" id="foodFats" min="0" step="0.1" autocomplete="off">
-        <label for="foodFats">Fats (g)</label>
-      </div>
-    </div>
+    <script>
+        // --- APPLICATION GLOBALS & CONFIG STATES ---
+        let db = null;
+        let activeOpMode = 'checkout'; // checkout | inventory
+        let html5QrcodeScanner = null;
+        let currentCameraId = null;
+        let isScannerRunning = false;
+        let activeCart = [];
+        let currentlyAttachedImageBase64 = null;
 
-    <button type="submit" class="btn-add" id="addBtn">Add Food</button>
-  </form>
+        const DB_NAME = 'SevenElevenTrackerDB';
+        const DB_VERSION = 1;
 
-  <!-- History -->
-  <div class="section-title">
-    Today's Log
-    <span class="badge" id="itemCount">0 items</span>
-  </div>
-  <div class="history-list" id="historyList">
-    <div class="history-empty" id="emptyState">No food logged yet — add your first item above.</div>
-  </div>
+        // Default structures to seed clean instances
+        const DEFAULT_AISLES = [
+            { id: 'a1', name: 'Drinks Zone' },
+            { id: 'a2', name: 'Snack Island' }
+        ];
+        const DEFAULT_SHELVES = [
+            { id: 's1', aisleId: 'a1', name: 'Shelf Level Top' },
+            { id: 's2', aisleId: 'a1', name: 'Shelf Level Mid' },
+            { id: 's3', aisleId: 'a2', name: 'Bulk Display Row 1' }
+        ];
 
-</div>
+        // --- LIFECYCLE INITIALIZER HOOK ---
+        window.addEventListener('DOMContentLoaded', () => {
+            initIndexedDB(() => {
+                lucide.createIcons();
+                populateAisleSelectors();
+                renderVisualShelves();
+                renderMasterProductsTable();
+                updateCartUI();
+            });
+        });
 
-<div class="toast" id="toast"></div>
+        // --- DATABASE ARCHITECTURE ENGINE (INDEXEDDB) ---
+        function initIndexedDB(callback) {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-<script>
-(function(){
-  "use strict";
+            request.onupgradeneeded = function(e) {
+                const dbInstance = e.target.result;
+                if (!dbInstance.objectStoreNames.contains('products')) {
+                    dbInstance.createObjectStore('products', { keyPath: 'barcode' });
+                }
+                if (!dbInstance.objectStoreNames.contains('aisles')) {
+                    dbInstance.createObjectStore('aisles', { keyPath: 'id' });
+                }
+                if (!dbInstance.objectStoreNames.contains('shelves')) {
+                    dbInstance.createObjectStore('shelves', { keyPath: 'id' });
+                }
+            };
 
-  var STORAGE_KEY = "nutritrack_data_v1";
-  var CIRCUMFERENCE = 2 * Math.PI * 86;
+            request.onsuccess = function(e) {
+                db = e.target.result;
+                
+                // Seed validation routines
+                const tx = db.transaction(['aisles', 'shelves'], 'readwrite');
+                const aisleStore = tx.objectStore('aisles');
+                const shelfStore = tx.objectStore('shelves');
 
-  var state = {
-    target: { calories: 2000, protein: 120, carbs: 250, fats: 65 },
-    items: [] // {id, name, calories, protein, carbs, fats, time}
-  };
+                aisleStore.getAll().onsuccess = function(event) {
+                    if (event.target.result.length === 0) {
+                        DEFAULT_AISLES.forEach(a => aisleStore.put(a));
+                        DEFAULT_SHELVES.forEach(s => shelfStore.put(s));
+                    }
+                    callback();
+                };
+            };
 
-  function loadState(){
-    try{
-      var raw = localStorage.getItem(STORAGE_KEY);
-      if(!raw) return;
-      var parsed = JSON.parse(raw);
-      var today = new Date().toDateString();
-      if(parsed.day !== today){
-        // new day: keep target, reset items
-        state.target = parsed.target || state.target;
-        state.items = [];
-        persist();
-        return;
-      }
-      state.target = parsed.target || state.target;
-      state.items = parsed.items || [];
-    } catch(e){ /* ignore corrupt storage */ }
-  }
-
-  function persist(){
-    var payload = {
-      day: new Date().toDateString(),
-      target: state.target,
-      items: state.items
-    };
-    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); }catch(e){}
-  }
-
-  // ---------- DOM refs ----------
-  var $ = function(id){ return document.getElementById(id); };
-  var ringFg = $("ringFg");
-  var calValue = $("calValue");
-  var calTargetLabel = $("calTargetLabel");
-  var remBadge = $("remBadge");
-  var targetInput = $("targetInput");
-  var saveTargetBtn = $("saveTargetBtn");
-
-  var proteinBar = $("proteinBar"), proteinVal = $("proteinVal"), proteinTarget = $("proteinTarget");
-  var carbsBar = $("carbsBar"), carbsVal = $("carbsVal"), carbsTarget = $("carbsTarget");
-  var fatsBar = $("fatsBar"), fatsVal = $("fatsVal"), fatsTarget = $("fatsTarget");
-
-  var addForm = $("addForm");
-  var foodName = $("foodName");
-  var foodCal = $("foodCal");
-  var foodProtein = $("foodProtein");
-  var foodCarbs = $("foodCarbs");
-  var foodFats = $("foodFats");
-
-  var historyList = $("historyList");
-  var emptyState = $("emptyState");
-  var itemCount = $("itemCount");
-  var toast = $("toast");
-  var dateLabel = $("dateLabel");
-
-  function fmtDate(){
-    var d = new Date();
-    var opts = { weekday: 'long', month: 'long', day: 'numeric' };
-    return d.toLocaleDateString(undefined, opts);
-  }
-
-  function showToast(msg){
-    toast.textContent = msg;
-    toast.classList.add("show");
-    clearTimeout(showToast._t);
-    showToast._t = setTimeout(function(){
-      toast.classList.remove("show");
-    }, 1800);
-  }
-
-  function totals(){
-    return state.items.reduce(function(acc, it){
-      acc.calories += Number(it.calories) || 0;
-      acc.protein += Number(it.protein) || 0;
-      acc.carbs += Number(it.carbs) || 0;
-      acc.fats += Number(it.fats) || 0;
-      return acc;
-    }, { calories:0, protein:0, carbs:0, fats:0 });
-  }
-
-  function renderDashboard(){
-    var t = totals();
-    var target = state.target;
-
-    calTargetLabel.textContent = target.calories;
-    targetInput.value = target.calories;
-    proteinTarget.textContent = target.protein;
-    carbsTarget.textContent = target.carbs;
-    fatsTarget.textContent = target.fats;
-
-    // animate calorie number count-up
-    animateNumber(calValue, Number(calValue.textContent) || 0, Math.round(t.calories));
-
-    var pct = Math.min(t.calories / target.calories, 1);
-    var offset = CIRCUMFERENCE * (1 - pct);
-    ringFg.style.strokeDashoffset = offset;
-
-    var remaining = target.calories - t.calories;
-    if(remaining >= 0){
-      remBadge.textContent = Math.round(remaining) + " left";
-      remBadge.classList.remove("over");
-      ringFg.style.stroke = "var(--calories)";
-    } else {
-      remBadge.textContent = Math.round(Math.abs(remaining)) + " over";
-      remBadge.classList.add("over");
-      ringFg.style.stroke = "var(--danger)";
-    }
-
-    setMacroBar(proteinBar, proteinVal, t.protein, target.protein);
-    setMacroBar(carbsBar, carbsVal, t.carbs, target.carbs);
-    setMacroBar(fatsBar, fatsVal, t.fats, target.fats);
-  }
-
-  function setMacroBar(barEl, valEl, current, target){
-    var pct = target > 0 ? Math.min((current / target) * 100, 100) : 0;
-    barEl.style.width = pct + "%";
-    valEl.textContent = Math.round(current * 10) / 10;
-  }
-
-  function animateNumber(el, from, to){
-    if(from === to){ el.textContent = to; return; }
-    var duration = 500;
-    var startTime = null;
-    function step(ts){
-      if(!startTime) startTime = ts;
-      var progress = Math.min((ts - startTime) / duration, 1);
-      var eased = 1 - Math.pow(1 - progress, 3);
-      var current = Math.round(from + (to - from) * eased);
-      el.textContent = current;
-      if(progress < 1){
-        requestAnimationFrame(step);
-      } else {
-        el.textContent = to;
-      }
-    }
-    requestAnimationFrame(step);
-  }
-
-  function itemIcon(name){
-    var trimmed = (name || "?").trim();
-    return trimmed.charAt(0).toUpperCase() || "?";
-  }
-
-  function renderHistory(){
-    itemCount.textContent = state.items.length + (state.items.length === 1 ? " item" : " items");
-
-    if(state.items.length === 0){
-      if(!$("emptyState")){
-        historyList.innerHTML = '<div class="history-empty" id="emptyState">No food logged yet — add your first item above.</div>';
-      }
-      return;
-    }
-
-    var existingEmpty = $("emptyState");
-    if(existingEmpty) existingEmpty.remove();
-
-    // Remove DOM nodes for items no longer in state (already handled by delete flow)
-    // Full re-render is simplest & safe here since dataset is small
-    var existingIds = Array.prototype.map.call(historyList.querySelectorAll(".item"), function(n){ return n.dataset.id; });
-    var stateIds = state.items.map(function(it){ return String(it.id); });
-
-    // Add new items that don't exist in DOM yet
-    state.items.forEach(function(it){
-      var node = historyList.querySelector('.item[data-id="' + it.id + '"]');
-      if(!node){
-        var el = buildItemNode(it);
-        historyList.insertBefore(el, historyList.firstChild);
-      }
-    });
-  }
-
-  function buildItemNode(it){
-    var el = document.createElement("div");
-    el.className = "item";
-    el.dataset.id = it.id;
-
-    el.innerHTML =
-      '<div class="item-icon">' + itemIcon(it.name) + '</div>' +
-      '<div class="item-body">' +
-        '<div class="item-name"></div>' +
-        '<div class="item-macros">' +
-          '<span>P ' + roundNum(it.protein) + 'g</span>' +
-          '<span>C ' + roundNum(it.carbs) + 'g</span>' +
-          '<span>F ' + roundNum(it.fats) + 'g</span>' +
-        '</div>' +
-      '</div>' +
-      '<div class="item-cal">' + Math.round(it.calories) + '<small>kcal</small></div>' +
-      '<button class="btn-del" aria-label="Delete item">✕</button>';
-
-    el.querySelector(".item-name").textContent = it.name;
-
-    var delBtn = el.querySelector(".btn-del");
-    delBtn.addEventListener("click", function(){
-      deleteItem(it.id, el);
-    });
-
-    return el;
-  }
-
-  function roundNum(n){
-    n = Number(n) || 0;
-    return Math.round(n * 10) / 10;
-  }
-
-  function addItem(data){
-    var item = {
-      id: Date.now() + "_" + Math.random().toString(36).slice(2, 8),
-      name: data.name,
-      calories: data.calories,
-      protein: data.protein,
-      carbs: data.carbs,
-      fats: data.fats,
-      time: new Date().toISOString()
-    };
-    state.items.unshift(item);
-    persist();
-    renderHistory();
-    renderDashboard();
-    showToast(item.name + " added");
-  }
-
-  function deleteItem(id, node){
-    node.classList.add("removing");
-    node.addEventListener("transitionend", function handler(){
-      node.removeEventListener("transitionend", handler);
-      node.remove();
-      state.items = state.items.filter(function(it){ return it.id !== id; });
-      persist();
-      renderHistory();
-      renderDashboard();
-    });
-    // fallback in case transitionend doesn't fire
-    setTimeout(function(){
-      if(node.parentNode){
-        node.remove();
-        state.items = state.items.filter(function(it){ return it.id !== id; });
-        persist();
-        renderHistory();
-        renderDashboard();
-      }
-    }, 500);
-  }
-
-  // ---------- Floating label filled-state handling ----------
-  function initFloatingLabels(){
-    var inputs = document.querySelectorAll(".field input");
-    inputs.forEach(function(inp){
-      var sync = function(){
-        if(inp.value && inp.value.length > 0){
-          inp.classList.add("filled");
-        } else {
-          inp.classList.remove("filled");
+            request.onerror = function() {
+                alert('Fatal Error initiating operational sandbox runtime filesystem database.');
+            };
         }
-      };
-      inp.addEventListener("input", sync);
-      inp.addEventListener("blur", sync);
-      sync();
-    });
-  }
 
-  // ---------- Form submit ----------
-  addForm.addEventListener("submit", function(e){
-    e.preventDefault();
+        // --- REUSABLE DATABASE CRUD UTILITIES ---
+        function performWrite(storeName, data, callback) {
+            const tx = db.transaction([storeName], 'readwrite');
+            const store = tx.objectStore(storeName);
+            const request = store.put(data);
+            request.onsuccess = () => { if(callback) callback(); };
+        }
 
-    var name = foodName.value.trim();
-    var cal = parseFloat(foodCal.value);
-    var protein = parseFloat(foodProtein.value) || 0;
-    var carbs = parseFloat(foodCarbs.value) || 0;
-    var fats = parseFloat(foodFats.value) || 0;
+        function performDelete(storeName, key, callback) {
+            const tx = db.transaction([storeName], 'readwrite');
+            const store = tx.objectStore(storeName);
+            const request = store.delete(key);
+            request.onsuccess = () => { if(callback) callback(); };
+        }
 
-    if(!name || isNaN(cal) || cal < 0){
-      showToast("Enter a food name and calories");
-      return;
-    }
+        function getAllItems(storeName, callback) {
+            const tx = db.transaction([storeName], 'readonly');
+            const store = tx.objectStore(storeName);
+            const request = store.getAll();
+            request.onsuccess = (e) => callback(e.target.result);
+        }
 
-    addItem({ name: name, calories: cal, protein: protein, carbs: carbs, fats: fats });
+        function getItemByKey(storeName, key, callback) {
+            const tx = db.transaction([storeName], 'readonly');
+            const store = tx.objectStore(storeName);
+            const request = store.get(key);
+            request.onsuccess = (e) => callback(e.target.result);
+        }
 
-    addForm.reset();
-    document.querySelectorAll(".field input").forEach(function(inp){
-      inp.classList.remove("filled");
-    });
-    foodName.focus();
-  });
+        // --- NAVIGATION & DOM VIEW MANAGER ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(tabId).classList.remove('hidden');
+            
+            // Render active button states toggles
+            ['nav-scanner-tab', 'nav-shelves-tab', 'nav-products-tab'].forEach(id => {
+                const button = document.getElementById(id);
+                if (id === `nav-${tabId}`) {
+                    button.className = "w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left font-medium transition-all duration-200 bg-emerald-50 text-emerald-600 border border-emerald-100";
+                } else {
+                    button.className = "w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left font-medium transition-all duration-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900";
+                }
+            });
 
-  saveTargetBtn.addEventListener("click", function(){
-    var val = parseFloat(targetInput.value);
-    if(isNaN(val) || val < 100){
-      showToast("Enter a valid target");
-      return;
-    }
-    state.target.calories = Math.round(val);
-    persist();
-    renderDashboard();
-    showToast("Daily target updated");
-  });
+            if (tabId === 'shelves-tab') renderVisualShelves();
+            if (tabId === 'products-tab') renderMasterProductsTable();
+        }
 
-  // ---------- Init ----------
-  function init(){
-    loadState();
-    dateLabel.textContent = fmtDate();
-    initFloatingLabels();
-    renderHistory();
-    // set initial ring state without count-up animation jump
-    calValue.textContent = "0";
-    renderDashboard();
-  }
+        function setOpMode(mode) {
+            activeOpMode = mode;
+            const checkoutBtn = document.getElementById('mode-checkout-btn');
+            const inventoryBtn = document.getElementById('mode-inventory-btn');
+            const badge = document.getElementById('active-mode-badge');
+            const title = document.getElementById('ops-panel-title');
 
-  init();
-})();
-</script>
+            if(mode === 'checkout') {
+                checkoutBtn.className = "flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 scale-100 hover:scale-105 active:scale-95 bg-white text-emerald-700 shadow-sm";
+                inventoryBtn.className = "flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 text-emerald-100 hover:text-white ml-1";
+                badge.innerText = "Checkout Active";
+                badge.className = "px-2.5 py-1 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full border border-amber-200 shadow-2xs";
+                title.innerText = "Active Checkout Terminal";
+                document.getElementById('checkout-view').classList.remove('hidden');
+                document.getElementById('inventory-view').classList.add('hidden');
+            } else {
+                inventoryBtn.className = "flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 scale-100 hover:scale-105 active:scale-95 bg-white text-emerald-700 shadow-sm";
+                checkoutBtn.className = "flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 text-emerald-100 hover:text-white ml-1";
+                badge.innerText = "Inventory Config Mode";
+                badge.className = "px-2.5 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full border border-blue-200 shadow-2xs";
+                title.innerText = "Live Stock Operations Monitor";
+                document.getElementById('checkout-view').classList.add('hidden');
+                document.getElementById('inventory-view').classList.remove('hidden');
+            }
+        }
+
+        // --- MODAL TOGGLES UTILS ---
+        function toggleModalVisibility(id, display) {
+            const target = document.getElementById(id);
+            if(display) {
+                target.classList.remove('opacity-0', 'pointer-events-none');
+                target.children[0].classList.remove('scale-95');
+                target.children[0].classList.add('scale-100');
+            } else {
+                target.classList.add('opacity-0', 'pointer-events-none');
+                target.children[0].classList.remove('scale-100');
+                target.children[0].classList.add('scale-95');
+            }
+        }
+
+        // --- SCANNER HARDWARE ARCHITECTURE (HTML5-QRCODE) ---
+        function toggleScanner() {
+            if (isScannerRunning) {
+                stopScannerEngine();
+            } else {
+                startScannerEngine();
+            }
+        }
+
+        function startScannerEngine() {
+            document.getElementById('scanner-placeholder').classList.add('hidden');
+            html5QrcodeScanner = new Html5Qrcode("reader");
+            
+            const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+            const facingMode = currentCameraId ? { exact: currentCameraId } : { facingMode: "environment" };
+
+            html5QrcodeScanner.start(
+                facingMode, 
+                config,
+                (decodedText) => {
+                    handleBarcodeDiscovery(decodedText);
+                    // Add quick success micro flash interface feedback
+                    document.getElementById('reader').classList.add('opacity-40');
+                    setTimeout(() => document.getElementById('reader').classList.remove('opacity-40'), 150);
+                },
+                () => {} // Suppress noise logs
+            ).then(() => {
+                isScannerRunning = true;
+                document.getElementById('scan-btn-text').innerText = "Stop Scanner";
+                document.getElementById('start-scan-btn').className = "flex items-center justify-center space-x-2 bg-red-600 hover:bg-red-700 text-white py-2.5 px-4 rounded-xl text-sm font-medium transition-all duration-300 shadow-md active:scale-95";
+                
+                // Inspect torch telemetry capability hooks
+                setTimeout(() => {
+                    try {
+                        const track = html5QrcodeScanner.getRunningTrack();
+                        const torchBtn = document.getElementById('torch-btn');
+                        if (track && typeof track.getCapabilities === 'function' && track.getCapabilities().torch) {
+                            torchBtn.disabled = false;
+                            torchBtn.className = "flex items-center justify-center space-x-2 bg-amber-50 border border-amber-200 text-amber-700 py-2.5 px-4 rounded-xl text-sm font-medium shadow-2xs hover:bg-amber-100 transition-all duration-300 active:scale-95";
+                        }
+                    } catch(err) { console.warn("Torch detection framework anomaly.", err); }
+                }, 1000);
+
+            }).catch(() => {
+                document.getElementById('scanner-placeholder').classList.remove('hidden');
+                alert("Camera deployment initialization failed. Check explicit system sandbox permissions.");
+            });
+        }
+
+        function stopScannerEngine() {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.stop().then(() => {
+                    isScannerRunning = false;
+                    document.getElementById('scan-btn-text').innerText = "Start Scanner";
+                    document.getElementById('start-scan-btn').className = "flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 px-4 rounded-xl text-sm font-medium transition-all duration-300 shadow-md active:scale-95";
+                    document.getElementById('scanner-placeholder').classList.remove('hidden');
+                    
+                    const torchBtn = document.getElementById('torch-btn');
+                    torchBtn.disabled = true;
+                    torchBtn.className = "flex items-center justify-center space-x-2 bg-gray-100 text-gray-400 py-2.5 px-4 rounded-xl text-sm font-medium border border-gray-200 shadow-2xs cursor-not-allowed";
+                });
+            }
+        }
+
+        function switchCamera() {
+            Html5Qrcode.getCameras().then(devices => {
+                if (devices && devices.length > 1) {
+                    if (!currentCameraId) {
+                        currentCameraId = devices[1].id;
+                    } else {
+                        const idx = devices.findIndex(d => d.id === currentCameraId);
+                        currentCameraId = devices[(idx + 1) % devices.length].id;
+                    }
+                    if (isScannerRunning) {
+                        stopScannerEngine();
+                        setTimeout(startScannerEngine, 400);
+                    }
+                } else {
+                    alert("No secondary discrete alternate hardware video tracking devices located.");
+                }
+            });
+        }
+
+        let torchState = false;
+        function toggleTorch() {
+            if (!isScannerRunning || !html5QrcodeScanner) return;
+            try {
+                const track = html5QrcodeScanner.getRunningTrack();
+                torchState = !torchState;
+                track.applyConstraints({ advanced: [{ torch: torchState }] });
+            } catch(e) { alert("Hardware execution constraint limits restricted."); }
+        }
+
+        function handleManualSubmit() {
+            const input = document.getElementById('manual-barcode');
+            if(input.value.trim()) {
+                handleBarcodeDiscovery(input.value.trim());
+                input.value = '';
+            }
+        }
+
+        // --- BUSINESS CORE LOGIC: BARCODE DISCOVERY ---
+        function handleBarcodeDiscovery(barcode) {
+            getItemByKey('products', barcode, (product) => {
+                if (product) {
+                    // Match hit -> Perform Mode operational matrix tasks
+                    if (activeOpMode === 'checkout') {
+                        addItemToCart(product);
+                    } else {
+                        hydrateInventoryFocusState(product);
+                    }
+                } else {
+                    // Cache miss -> Spawn modal constructor builder wizard
+                    openProductModal(barcode);
+                }
+            });
+        }
+
+        // --- SUBMODULE WORKSPACE: CHECKOUT ENGINE ---
+        function addItemToCart(product) {
+            const existing = activeCart.find(item => item.barcode === product.barcode);
+            if (existing) {
+                existing.quantity++;
+            } else {
+                activeCart.push({ ...product, quantity: 1 });
+            }
+            updateCartUI();
+        }
+
+        function adjustCartQty(barcode, change) {
+            const idx = activeCart.findIndex(item => item.barcode === barcode);
+            if(idx !== -1) {
+                activeCart[idx].quantity += change;
+                if(activeCart[idx].quantity <= 0) activeCart.splice(idx, 1);
+            }
+            updateCartUI();
+        }
+
+        function updateCartUI() {
+            const container = document.getElementById('cart-items-container');
+            if(activeCart.length === 0) {
+                container.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center text-gray-400 py-12 space-y-2">
+                        <i data-lucide="shopping-bag" class="w-12 h-12 stroke-1 text-gray-300"></i>
+                        <p class="text-sm font-medium">Cart is currently empty</p>
+                    </div>`;
+                document.getElementById('cart-total').innerText = '฿0.00';
+                lucide.createIcons();
+                return;
+            }
+
+            let total = 0;
+            container.innerHTML = activeCart.map(item => {
+                const lineTotal = item.price * item.quantity;
+                total += lineTotal;
+                return `
+                    <div class="flex items-center justify-between p-2.5 bg-gray-50 border border-gray-100 rounded-xl space-x-2">
+                        <img class="w-10 h-10 object-cover rounded-lg border bg-white" src="${item.image || 'data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23ccc\' stroke-width=\'2\'><rect x=\'3\' y=\'3\' width=\'18\' height=\'18\' rx=\'2\' ry=\'2\'/><circle cx=\'8.5\' cy=\'8.5\' r=\'1.5\'/><polyline points=\'21 15 16 10 5 21\'/></svg>'}">
+                        <div class="flex-1 min-w-0">
+                            <h5 class="text-xs font-bold text-gray-800 truncate">${item.name}</h5>
+                            <p class="text-[11px] font-semibold text-gray-500">฿${parseFloat(item.price).toFixed(2)}</p>
+                        </div>
+                        <div class="flex items-center space-x-1.5 bg-white border border-gray-200 rounded-lg p-1">
+                            <button onclick="adjustCartQty('${item.barcode}', -1)" class="w-5 h-5 text-xs flex items-center justify-center font-bold text-gray-500 hover:bg-gray-100 rounded">-</button>
+                            <span class="text-xs font-bold w-4 text-center">${item.quantity}</span>
+                            <button onclick="adjustCartQty('${item.barcode}', 1)" class="w-5 h-5 text-xs flex items-center justify-center font-bold text-gray-500 hover:bg-gray-100 rounded">+</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('cart-total').innerText = `฿${total.toFixed(2)}`;
+            lucide.createIcons();
+        }
+
+        function clearCart() {
+            if(activeCart.length === 0) return;
+            
+            // Deduct inventory quantities transaction step sequence safely
+            const tx = db.transaction(['products'], 'readwrite');
+            const store = tx.objectStore('products');
+            
+            activeCart.forEach(cartItem => {
+                store.get(cartItem.barcode).onsuccess = (e) => {
+                    const prod = e.target.result;
+                    if(prod) {
+                        prod.stock = Math.max(0, prod.stock - cartItem.quantity);
+                        store.put(prod);
+                    }
+                };
+            });
+
+            tx.oncomplete = () => {
+                alert("Transaction processing validated successfully. Virtual receipts printed.");
+                activeCart = [];
+                updateCartUI();
+                renderMasterProductsTable();
+                renderVisualShelves();
+            };
+        }
+
+        // --- SUBMODULE WORKSPACE: INVENTORY MAINTENANCE ENGINE ---
+        let currentActiveInventoryProductBarcode = null;
+
+        function hydrateInventoryFocusState(product) {
+            currentActiveInventoryProductBarcode = product.barcode;
+            document.getElementById('inv-empty-state').classList.add('hidden');
+            
+            const activeBlock = document.getElementById('inv-active-state');
+            activeBlock.classList.remove('hidden');
+
+            document.getElementById('inv-prod-name').innerText = product.name;
+            document.getElementById('inv-prod-barcode').innerText = product.barcode;
+            document.getElementById('inv-prod-stock').innerText = product.stock;
+            if(product.image) document.getElementById('inv-prod-img').src = product.image;
+
+            // Fetch structural taxonomy identities labels
+            getItemByKey('aisles', product.aisleId, (aisle) => {
+                getItemByKey('shelves', product.shelfId, (shelf) => {
+                    document.getElementById('inv-prod-loc').innerText = `${aisle?.name || 'Unknown Zone'} > ${shelf?.name || 'Loose Layer'}`;
+                });
+            });
+        }
+
+        function adjustInvStock(change) {
+            if(!currentActiveInventoryProductBarcode) return;
+            getItemByKey('products', currentActiveInventoryProductBarcode, (product) => {
+                if(product) {
+                    product.stock = Math.max(0, product.stock + change);
+                    performWrite('products', product, () => {
+                        document.getElementById('inv-prod-stock').innerText = product.stock;
+                        renderMasterProductsTable();
+                    });
+                }
+            });
+        }
+
+        function resetInventoryView() {
+            currentActiveInventoryProductBarcode = null;
+            document.getElementById('inv-active-state').classList.add('hidden');
+            document.getElementById('inv-empty-state').classList.remove('hidden');
+        }
+
+        // --- PRODUCT METADATA BUILDER POPUP LOGIC ---
+        function openProductModal(barcode) {
+            document.getElementById('modal-barcode').value = barcode;
+            document.getElementById('modal-name').value = '';
+            document.getElementById('modal-price').value = '';
+            document.getElementById('modal-stock').value = '';
+            clearModalImage();
+            populateModalAisleSelect();
+            toggleModalVisibility('product-modal', true);
+        }
+
+        function closeProductModal() {
+            toggleModalVisibility('product-modal', false);
+        }
+
+        function populateModalAisleSelect() {
+            getAllItems('aisles', (aisles) => {
+                const select = document.getElementById('modal-aisle');
+                select.innerHTML = aisles.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+                populateModalShelves();
+            });
+        }
+
+        function populateModalShelves() {
+            const aisleId = document.getElementById('modal-aisle').value;
+            getAllItems('shelves', (shelves) => {
+                const filtered = shelves.filter(s => s.aisleId === aisleId);
+                const select = document.getElementById('modal-shelf');
+                select.innerHTML = filtered.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            });
+        }
+
+        // Image Handling (File Input or Camera Canvas Capture)
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    attachImageToModalPreview(e.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function captureScannerSnapshot() {
+            if(!isScannerRunning || !html5QrcodeScanner) {
+                alert("Camera deployment framework engine not active to isolate a video raster graphic canvas feed.");
+                return;
+            }
+            try {
+                const video = document.querySelector('#reader video');
+                if(video) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    
+                    // Compress JPEG directly into application payload storage targets
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+                    attachImageToModalPreview(dataUrl);
+                }
+            } catch(e) { alert("Rastor frame buffering exception encountered."); }
+        }
+
+        function attachImageToModalPreview(base64Str) {
+            currentlyAttachedImageBase64 = base64Str;
+            document.getElementById('modal-preview-src').src = base64Str;
+            document.getElementById('modal-img-preview-box').classList.remove('hidden');
+        }
+
+        function clearModalImage() {
+            currentlyAttachedImageBase64 = null;
+            document.getElementById('modal-img-preview-box').classList.add('hidden');
+            document.getElementById('modal-file-upload').value = '';
+        }
+
+        function saveProductFromModal() {
+            const barcode = document.getElementById('modal-barcode').value;
+            const name = document.getElementById('modal-name').value.trim();
+            const price = parseFloat(document.getElementById('modal-price').value);
+            const stock = parseInt(document.getElementById('modal-stock').value);
+            const aisleId = document.getElementById('modal-aisle').value;
+            const shelfId = document.getElementById('modal-shelf').value;
+
+            if(!name || isNaN(price) || isNaN(stock) || !shelfId) {
+                alert("Please fully resolve complete designated mandatory field arguments.");
+                return;
+            }
+
+            const payload = {
+                barcode, name, price, stock, aisleId, shelfId,
+                image: currentlyAttachedImageBase64
+            };
+
+            performWrite('products', payload, () => {
+                closeProductModal();
+                handleBarcodeDiscovery(barcode); // Auto-feed tracking focus stream operations loop directly
+                renderMasterProductsTable();
+                renderVisualShelves();
+            });
+        }
+
+        // --- SUBMODULE WORKSPACE: VISUAL SHELF MATRIX LAYOUT GRAPHICS ENGINE ---
+        function populateAisleSelectors() {
+            getAllItems('aisles', (aisles) => {
+                const viewSelect = document.getElementById('shelf-view-aisle-select');
+                const modalAisle = document.getElementById('shelf-modal-aisle-select');
+                
+                const optionsStr = aisles.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+                viewSelect.innerHTML = optionsStr;
+                modalAisle.innerHTML = optionsStr;
+                renderVisualShelves();
+            });
+        }
+
+        function renderVisualShelves() {
+            const targetAisleId = document.getElementById('shelf-view-aisle-select').value;
+            if(!targetAisleId) return;
+
+            getAllItems('shelves', (shelves) => {
+                const filteredShelves = shelves.filter(s => s.aisleId === targetAisleId);
+                
+                getAllItems('products', (products) => {
+                    const matrixContainer = document.getElementById('shelves-display-matrix');
+                    
+                    if(filteredShelves.length === 0) {
+                        matrixContainer.innerHTML = `
+                            <div class="text-center py-12 text-gray-400 bg-white border border-gray-100 rounded-2xl">
+                                <i data-lucide="layers-3" class="w-12 h-12 mx-auto stroke-1 mb-2"></i>
+                                <p class="text-sm font-semibold">No horizontal rack configurations detected inside zone.</p>
+                            </div>`;
+                        lucide.createIcons();
+                        return;
+                    }
+
+                    matrixContainer.innerHTML = filteredShelves.map(shelf => {
+                        const shelfProducts = products.filter(p => p.shelfId === shelf.id);
+                        
+                        return `
+                            <div class="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden transition-all duration-300 hover:shadow-md">
+                                <div class="px-5 py-3 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200/60 flex justify-between items-center">
+                                    <div class="flex items-center space-x-2">
+                                        <div class="w-2 h-4 bg-emerald-500 rounded-full"></div>
+                                        <h3 class="font-bold text-gray-700 text-sm tracking-wide">${shelf.name}</h3>
+                                        <span class="text-xs bg-gray-200/70 text-gray-500 px-2 py-0.5 rounded-full font-bold">${shelfProducts.length} Items</span>
+                                    </div>
+                                    <button onclick="removeShelfRow('${shelf.id}')" class="text-gray-300 hover:text-red-500 transition-colors p-1"><i data-lucide="trash" class="w-4 h-4"></i></button>
+                                </div>
+                                
+                                <div class="p-6 bg-amber-50/20 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4 min-h-[140px] relative">
+                                    ${shelfProducts.map(p => `
+                                        <div onclick="setOpMode('inventory'); handleBarcodeDiscovery('${p.barcode}'); switchTab('scanner-tab');" class="bg-white p-2.5 rounded-xl border border-gray-200/80 shadow-2xs flex flex-col items-center justify-between text-center relative group cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-emerald-200 active:scale-95">
+                                            <div class="w-full aspect-square bg-gray-50 rounded-lg overflow-hidden border border-gray-100 mb-2 relative">
+                                                <img class="w-full h-full object-cover" src="${p.image || 'data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23ddd\' stroke-width=\'2\'><rect x=\'3\' y=\'3\' width=\'18\' height=\'18\' rx=\'2\' ry=\'2\'/><circle cx=\'8.5\' cy=\'8.5\' r=\'1.5\'/><polyline points=\'21 15 16 10 5 21\'/></svg>'}">
+                                                ${p.stock <= 5 ? `<span class="absolute top-1 right-1 bg-rose-500 text-white font-black text-[9px] px-1.5 py-0.5 rounded-md animate-pulse">LOW</span>` : ''}
+                                            </div>
+                                            <div class="w-full">
+                                                <h4 class="text-xs font-black text-gray-800 truncate px-0.5">${p.name}</h4>
+                                                <div class="flex justify-between items-center mt-1 text-[11px] font-semibold text-gray-400 px-0.5">
+                                                    <span>฿${parseFloat(p.price).toFixed(0)}</span>
+                                                    <span class="${p.stock === 0 ? 'text-red-500 font-bold' : 'text-emerald-600'}">Qty: ${p.stock}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                    
+                                    <div onclick="switchTab('scanner-tab')" class="border-2 border-dashed border-gray-200 hover:border-emerald-300 rounded-xl flex flex-col items-center justify-center p-4 text-gray-300 hover:text-emerald-500 transition-all duration-200 cursor-pointer min-h-[120px] bg-white/40 group">
+                                        <i data-lucide="plus" class="w-5 h-5 mb-1 group-hover:scale-110 transition-transform"></i>
+                                        <span class="text-[10px] font-bold uppercase tracking-wider">Scan Placed</span>
+                                    </div>
+                                </div>
+                                <div class="h-2 bg-gradient-to-b from-amber-800 to-amber-900 w-full shadow-inner"></div>
+                            </div>
+                        `;
+                    }).join('');
+                    lucide.createIcons();
+                });
+            });
+        }
+
+        // Dynamic Zone Management Logic Engine
+        function openAisleModal() {
+            toggleModalVisibility('aisle-modal', true);
+            renderAisleManagerList();
+        }
+        function closeAisleModal() { toggleModalVisibility('aisle-modal', false); }
+        
+        function renderAisleManagerList() {
+            getAllItems('aisles', (aisles) => {
+                const container = document.getElementById('aisle-manager-list');
+                container.innerHTML = aisles.map(a => `
+                    <div class="flex justify-between items-center py-2 px-1 text-sm font-medium text-gray-700">
+                        <span>${a.name}</span>
+                        <button onclick="removeAisleZone('${a.id}')" class="text-gray-400 hover:text-red-500 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </div>
+                `).join('');
+                lucide.createIcons();
+            });
+        }
+
+        function createAisle() {
+            const input = document.getElementById('new-aisle-name');
+            const name = input.value.trim();
+            if(!name) return;
+            const newAisle = { id: 'a_' + Date.now(), name };
+            performWrite('aisles', newAisle, () => {
+                input.value = '';
+                populateAisleSelectors();
+                renderAisleManagerList();
+            });
+        }
+
+        function removeAisleZone(id) {
+            if(confirm("Cascade complete structural entities deletion? All nested row assets will detach.")) {
+                performDelete('aisles', id, () => {
+                    populateAisleSelectors();
+                    renderAisleManagerList();
+                });
+            }
+        }
+
+        function openShelfModal() {
+            populateAisleSelectors();
+            toggleModalVisibility('shelf-modal', true);
+        }
+        function closeShelfModal() { toggleModalVisibility('shelf-modal', false); }
+
+        function createShelf() {
+            const aisleId = document.getElementById('shelf-modal-aisle-select').value;
+            const input = document.getElementById('new-shelf-name');
+            const name = input.value.trim();
+            if(!name || !aisleId) return;
+
+            const newShelf = { id: 's_' + Date.now(), aisleId, name };
+            performWrite('shelves', newShelf, () => {
+                input.value = '';
+                closeShelfModal();
+                renderVisualShelves();
+            });
+        }
+
+        function removeShelfRow(id) {
+            if(confirm("Confirm removal parameters for active linear segment layer rows?")) {
+                performDelete('shelves', id, () => {
+                    renderVisualShelves();
+                });
+            }
+        }
+
+        // --- SUBMODULE WORKSPACE: MASTER DATA TABLE LISTINGS ---
+        function renderMasterProductsTable() {
+            const query = document.getElementById('prod-search-input').value.toLowerCase();
+            getAllItems('products', (products) => {
+                const tbody = document.getElementById('master-table-body');
+                
+                const filtered = products.filter(p => 
+                    p.name.toLowerCase().includes(query) || p.barcode.includes(query)
+                );
+
+                if(filtered.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-gray-400 font-medium bg-gray-50/20">No matching indexed records matched current lookup query expressions.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = filtered.map(p => `
+                    <tr class="hover:bg-gray-50/70 transition-colors group">
+                        <td class="py-3 px-6 flex items-center space-x-3">
+                            <img class="w-9 h-9 object-cover rounded-lg bg-gray-100 border border-gray-200" src="${p.image || 'data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23ccc\' stroke-width=\'2\'><rect x=\'3\' y=\'3\' width=\'18\' height=\'18\' rx=\'2\' ry=\'2\'/><circle cx=\'8.5\' cy=\'8.5\' r=\'1.5\'/><polyline points=\'21 15 16 10 5 21\'/></svg>'}">
+                            <span class="font-bold text-gray-800 max-w-[180px] truncate block">${p.name}</span>
+                        </td>
+                        <td class="py-3 px-6 font-mono text-xs text-gray-500">${p.barcode}</td>
+                        <td class="py-3 px-6 text-xs text-gray-500 font-medium" id="td-loc-${p.barcode}">Loading Loc...</td>
+                        <td class="py-3 px-6 text-right font-black text-gray-800">฿${parseFloat(p.price).toFixed(2)}</td>
+                        <td class="py-3 px-6 text-center"><span class="px-2 py-1 rounded-md text-xs font-bold ${p.stock === 0 ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-700'}">${p.stock} units</span></td>
+                        <td class="py-3 px-6 text-center">
+                            <button onclick="deleteProductMasterRecord('${p.barcode}')" class="text-gray-300 hover:text-rose-600 p-1 rounded-md transition-colors opacity-0 group-hover:opacity-100"><i data-lucide="trash" class="w-4 h-4 mx-auto"></i></button>
+                        </td>
+                    </tr>
+                `).join('');
+
+                // Resolve dynamic loc labels
+                filtered.forEach(p => {
+                    getItemByKey('aisles', p.aisleId, (aisle) => {
+                        getItemByKey('shelves', p.shelfId, (shelf) => {
+                            const el = document.getElementById(`td-loc-${p.barcode}`);
+                            if(el) el.innerText = `${aisle?.name || 'Err'}/${shelf?.name || 'Err'}`;
+                        });
+                    });
+                });
+                lucide.createIcons();
+            });
+        }
+
+        function deleteProductMasterRecord(barcode) {
+            if(confirm("Confirm radical purge sequence execution across system records?")) {
+                performDelete('products', barcode, () => {
+                    renderMasterProductsTable();
+                    renderVisualShelves();
+                });
+            }
+        }
+
+        // --- EXPORT MATRIX SYSTEMS & COMPLIANCE ARCHIVE ARCHITECTURE ---
+        function backupDatabase() {
+            const backupPayload = {};
+            const stores = ['products', 'aisles', 'shelves'];
+            let completed = 0;
+
+            stores.forEach(storeName => {
+                getAllItems(storeName, (data) => {
+                    backupPayload[storeName] = data;
+                    completed++;
+                    if(completed === stores.length) {
+                        const blob = new Blob([JSON.stringify(backupPayload, null, 2)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `711_CoreDB_Backup_${new Date().toISOString().slice(0,10)}.json`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                    }
+                });
+            });
+        }
+
+        function exportCSV() {
+            getAllItems('products', (products) => {
+                let csvContent = "\uFEFF"; // UTF-8 BOM definition compliance standard
+                csvContent += "Barcode,Product Name,Retail Price (THB),Current In-Stock Quantity\n";
+                
+                products.forEach(p => {
+                    // Escape double quotes expression parameters gracefully
+                    const safeName = p.name.replace(/"/g, '""');
+                    csvContent += `"${p.barcode}","${safeName}",${p.price},${p.stock}\n`;
+                });
+
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `711_MasterInventoryExport_${new Date().toISOString().slice(0,10)}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        }
+    </script>
 </body>
 </html>
