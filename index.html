@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Manifest — Barcode Verification Log</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg: #1B1D22;
+    --surface: #24272E;
+    --surface-2: #2C3038;
+    --hairline: #3A3F49;
+    --text: #ECEAE3;
+    --muted: #9497A1;
+    --laser: #FF453A;
+    --match: #45B08C;
+    --match-dim: #2C4A40;
+    --new: #E3A83B;
+    --new-dim: #4A3E22;
+    --error: #E5484D;
+    --error-dim: #4A2A2C;
+  }
+  html, body { background: var(--bg); color: var(--text); font-family: 'IBM Plex Sans', sans-serif; }
+  .font-mono-brand { font-family: 'IBM Plex Mono', monospace; }
+  ::selection { background: var(--laser); color: #14161A; }
+
+  /* scrollbar */
+  .ledger::-webkit-scrollbar { width: 8px; }
+  .ledger::-webkit-scrollbar-track { background: transparent; }
+  .ledger::-webkit-scrollbar-thumb { background: var(--hairline); border-radius: 4px; }
+
+  #reader { width: 100%; }
+  #reader video { border-radius: 0.5rem; object-fit: cover; }
+  #reader img { display: none !important; }
+
+  /* laser scan line */
+  @keyframes sweep {
+    0%   { top: 20%; opacity: 0; }
+    8%   { opacity: 1; }
+    50%  { top: 80%; opacity: 1; }
+    92%  { opacity: 1; }
+    100% { top: 20%; opacity: 0; }
+  }
+  .laser-line {
+    position: absolute;
+    left: 4%;
+    right: 4%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--laser) 15%, var(--laser) 85%, transparent);
+    box-shadow: 0 0 8px 1px rgba(255,69,58,0.8);
+    animation: sweep 2.2s ease-in-out infinite;
+    pointer-events: none;
+  }
+  
+  /* ปรับกรอบเส้นมุมของเป้าสแกนให้เข้ากับรูปทรงสี่เหลี่ยมผืนผ้าแนวนอน */
+  .corner { position:absolute; width:22px; height:22px; border-color: var(--laser); opacity:.9; }
+
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .banner-enter { animation: fadeSlideIn .28s ease-out; }
+
+  @keyframes rowIn {
+    from { opacity: 0; transform: translateX(-4px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .row-enter { animation: rowIn .25s ease-out; }
+
+  .pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; } 50% { opacity: .35; }
+  }
+
+  input[type="text"]:focus, textarea:focus, button:focus-visible {
+    outline: 2px solid var(--laser);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .laser-line, .banner-enter, .row-enter, .pulse-dot { animation: none !important; }
+  }
+</style>
+</head>
+
+<body class="min-h-screen">
+
+<div class="max-w-2xl mx-auto px-4 pb-24 pt-6 sm:pt-10">
+
+  <header class="flex items-start justify-between mb-6 sm:mb-8">
+    <div>
+      <h1 class="font-mono-brand text-2xl sm:text-3xl font-semibold tracking-tight" style="color: var(--text)">MANIFEST</h1>
+      <p class="text-sm mt-1" style="color: var(--muted)">Barcode verification &amp; memo log</p>
+    </div>
+    <div class="flex items-center gap-2 text-xs font-mono-brand pt-1" style="color: var(--muted)">
+      <span id="db-dot" class="w-2 h-2 rounded-full pulse-dot" style="background: var(--new)"></span>
+      <span id="db-status">initializing</span>
+    </div>
+  </header>
+
+  <section class="rounded-xl p-4 sm:p-5 mb-5" style="background: var(--surface); border: 1px solid var(--hairline)">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-mono-brand text-xs uppercase tracking-widest" style="color: var(--muted)">01 · Scan Input</h2>
+      <button id="torch-btn" class="hidden text-xs font-mono-brand px-2 py-1 rounded border" style="border-color: var(--hairline); color: var(--muted)">TORCH</button>
+    </div>
+
+    <div class="relative rounded-lg overflow-hidden" style="background:#0F1013; min-height: 0;">
+      <div id="reader" class="relative"></div>
+      <div id="scan-overlay" class="hidden absolute inset-0 pointer-events-none z-10">
+        <div class="laser-line"></div>
+        <div class="corner border-t-2 border-l-2 rounded-tl" style="top: calc(50% - 70px); left: calc(50% - 160px);"></div>
+        <div class="corner border-t-2 border-r-2 rounded-tr" style="top: calc(50% - 70px); right: calc(50% - 160px);"></div>
+        <div class="corner border-b-2 border-l-2 rounded-bl" style="bottom: calc(50% - 70px); left: calc(50% - 160px);"></div>
+        <div class="corner border-b-2 border-r-2 rounded-br" style="bottom: calc(50% - 70px); right: calc(50% - 160px);"></div>
+      </div>
+      <div id="camera-placeholder" class="flex flex-col items-center justify-center gap-2 py-14 text-center px-6">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-9 h-9" style="color: var(--muted)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="7" width="18" height="12" rx="2"/><path d="M8 7l1.5-3h5L16 7"/><circle cx="12" cy="13" r="3.5"/></svg>
+        <p class="text-sm" style="color: var(--muted)">Camera is off</p>
+      </div>
+    </div>
+
+    <div class="flex gap-2 mt-3">
+      <button id="start-btn" class="flex-1 font-mono-brand text-sm font-medium py-2.5 rounded-lg transition-colors duration-150" style="background: var(--laser); color: #14161A;">Start Camera</button>
+      <button id="stop-btn" class="hidden flex-1 font-mono-brand text-sm font-medium py-2.5 rounded-lg transition-colors duration-150 border" style="border-color: var(--hairline); color: var(--text)">Stop Camera</button>
+      <button id="rescan-btn" class="hidden flex-1 font-mono-brand text-sm font-medium py-2.5 rounded-lg transition-colors duration-150" style="background: var(--laser); color:#14161A;">Scan Next</button>
+    </div>
+
+    <div class="mt-4 pt-4" style="border-top: 1px solid var(--hairline)">
+      <label class="text-xs font-mono-brand uppercase tracking-widest block mb-2" style="color: var(--muted)">Manual Entry</label>
+      <form id="manual-form" class="flex gap-2">
+        <input id="manual-input" type="text" inputmode="text" autocomplete="off" placeholder="Type or paste a barcode…"
+          class="flex-1 rounded-lg px-3 py-2.5 text-sm font-mono-brand bg-transparent"
+          style="background: var(--surface-2); border: 1px solid var(--hairline); color: var(--text)">
+        <button type="submit" class="font-mono-brand text-sm px-4 rounded-lg" style="background: var(--surface-2); border: 1px solid var(--hairline); color: var(--text)">Check</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="result-area" class="mb-5"></section>
+
+  <section class="rounded-xl p-4 sm:p-5" style="background: var(--surface); border: 1px solid var(--hairline)">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-mono-brand text-xs uppercase tracking-widest" style="color: var(--muted)">02 · Manifest Log</h2>
+      <span id="log-count" class="font-mono-brand text-xs" style="color: var(--muted)">0 entries</span>
+    </div>
+    <input id="search-input" type="text" placeholder="Filter by barcode or name…"
+      class="w-full rounded-lg px-3 py-2 text-sm mb-3 bg-transparent"
+      style="background: var(--surface-2); border: 1px solid var(--hairline); color: var(--text)">
+    <div id="history-list" class="ledger flex flex-col gap-2 max-h-[420px] overflow-y-auto pr-1"></div>
+    <p id="empty-state" class="text-sm text-center py-8" style="color: var(--muted)">No entries yet. Scan or enter a barcode to begin logging.</p>
+  </section>
+
+  <footer class="text-center mt-8 text-xs font-mono-brand" style="color: var(--muted)">
+    Data is stored locally in this browser via IndexedDB. Nothing leaves your device.
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------------------------------------------------------------------
+  // INDEXEDDB LAYER
+  // ---------------------------------------------------------------------
+  const DB_NAME = "barcodeMemoDB";
+  const DB_VERSION = 1;
+  const STORE = "items";
+  let db = null;
+
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = (e) => {
+        const _db = e.target.result;
+        if (!_db.objectStoreNames.contains(STORE)) {
+          const store = _db.createObjectStore(STORE, { keyPath: "barcode" });
+          store.createIndex("createdAt", "createdAt", { unique: false });
+        }
+      };
+      req.onsuccess = (e) => resolve(e.target.result);
+      req.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  function tx(mode) {
+    return db.transaction(STORE, mode).objectStore(STORE);
+  }
+
+  function getItem(barcode) {
+    return new Promise((resolve, reject) => {
+      const req = tx("readonly").get(barcode);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function putItem(item) {
+    return new Promise((resolve, reject) => {
+      const req = tx("readwrite").put(item);
+      req.onsuccess = () => resolve(item);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function deleteItem(barcode) {
+    return new Promise((resolve, reject) => {
+      const req = tx("readwrite").delete(barcode);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function getAllItems() {
+    return new Promise((resolve, reject) => {
+      const req = tx("readonly").getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // DOM REFS
+  // ---------------------------------------------------------------------
+  const dbDot = document.getElementById("db-dot");
+  const dbStatus = document.getElementById("db-status");
+  const resultArea = document.getElementById("result-area");
+  const historyList = document.getElementById("history-list");
+  const emptyState = document.getElementById("empty-state");
+  const logCount = document.getElementById("log-count");
+  const searchInput = document.getElementById("search-input");
+
+  const readerEl = document.getElementById("reader");
+  const scanOverlay = document.getElementById("scan-overlay");
+  const cameraPlaceholder = document.getElementById("camera-placeholder");
+  const startBtn = document.getElementById("start-btn");
+  const stopBtn = document.getElementById("stop-btn");
+  const rescanBtn = document.getElementById("rescan-btn");
+  const torchBtn = document.getElementById("torch-btn");
+  const manualForm = document.getElementById("manual-form");
+  const manualInput = document.getElementById("manual-input");
+
+  let allItemsCache = [];
+  let html5QrCode = null;
+  let cameraRunning = false;
+  let torchOn = false;
+
+  // ---------------------------------------------------------------------
+  // UTIL
+  // ---------------------------------------------------------------------
+  function esc(str) {
+    const d = document.createElement("div");
+    d.textContent = str == null ? "" : String(str);
+    return d.innerHTML;
+  }
+
+  function formatTime(iso) {
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, {
+      year: "numeric", month: "short", day: "2-digit",
+      hour: "2-digit", minute: "2-digit"
+    });
+  }
+
+  function setDbStatus(ok) {
+    if (ok) {
+      dbDot.style.background = "var(--match)";
+      dbStatus.textContent = "ready";
+    } else {
+      dbDot.style.background = "var(--error)";
+      dbStatus.textContent = "unavailable";
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // RESULT BANNERS
+  // ---------------------------------------------------------------------
+  function clearResult() {
+    resultArea.innerHTML = "";
+  }
+
+  function renderMatchBanner(item) {
+    resultArea.innerHTML = `
+      <div class="banner-enter rounded-xl p-4 sm:p-5" style="background: var(--match-dim); border: 1px solid var(--match);">
+        <div class="flex items-start gap-3">
+          <div class="shrink-0 w-9 h-9 rounded-full flex items-center justify-center" style="background: var(--match);">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" style="color:#0F1013" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="font-mono-brand text-xs uppercase tracking-widest mb-1" style="color: var(--match)">Match Found</p>
+            <p class="text-lg font-semibold leading-snug" style="color: var(--text)">${esc(item.name)}</p>
+            ${item.memo ? `<p class="text-sm mt-1" style="color: var(--text); opacity:.85">${esc(item.memo)}</p>` : ""}
+            <div class="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs font-mono-brand" style="color: var(--muted)">
+              <span>BARCODE ${esc(item.barcode)}</span>
+              <span>FIRST LOGGED ${formatTime(item.createdAt)}</span>
+              <span>SCANS ${item.scanCount || 1}</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex gap-2 mt-4">
+          <button id="edit-match-btn" class="text-xs font-mono-brand px-3 py-2 rounded-lg border" style="border-color: var(--match); color: var(--text)">Edit Memo</button>
+          <button id="dismiss-match-btn" class="text-xs font-mono-brand px-3 py-2 rounded-lg" style="background: transparent; color: var(--muted)">Dismiss</button>
+        </div>
+        <div id="edit-match-form-wrap"></div>
+      </div>
+    `;
+
+    document.getElementById("dismiss-match-btn").addEventListener("click", clearResult);
+    document.getElementById("edit-match-btn").addEventListener("click", () => {
+      renderEditForm(item);
+    });
+  }
+
+  function renderEditForm(item) {
+    const wrap = document.getElementById("edit-match-form-wrap");
+    wrap.innerHTML = `
+      <form id="edit-form" class="mt-4 pt-4 flex flex-col gap-2" style="border-top: 1px solid var(--match)">
+        <input id="edit-name" type="text" value="${esc(item.name)}" required
+          class="w-full rounded-lg px-3 py-2 text-sm bg-transparent" style="background: var(--surface-2); border: 1px solid var(--hairline); color: var(--text)">
+        <textarea id="edit-memo" rows="2" placeholder="Memo / notes (optional)"
+          class="w-full rounded-lg px-3 py-2 text-sm bg-transparent resize-none" style="background: var(--surface-2); border: 1px solid var(--hairline); color: var(--text)">${esc(item.memo || "")}</textarea>
+        <div class="flex gap-2">
+          <button type="submit" class="flex-1 font-mono-brand text-sm py-2 rounded-lg" style="background: var(--match); color:#0F1013;">Save Changes</button>
+          <button type="button" id="delete-item-btn" class="font-mono-brand text-sm px-3 py-2 rounded-lg border" style="border-color: var(--error); color: var(--error)">Delete</button>
+        </div>
+      </form>
+    `;
+    document.getElementById("edit-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = document.getElementById("edit-name").value.trim();
+      const memo = document.getElementById("edit-memo").value.trim();
+      if (!name) return;
+      const updated = { ...item, name, memo, updatedAt: new Date().toISOString() };
+      await putItem(updated);
+      await refreshHistory();
+      renderMatchBanner(updated);
+    });
+    document.getElementById("delete-item-btn").addEventListener("click", async () => {
+      if (!confirm(`Delete manifest entry for barcode ${item.barcode}? This cannot be undone.`)) return;
+      await deleteItem(item.barcode);
+      await refreshHistory();
+      clearResult();
+    });
+  }
+
+  function renderNewBanner(barcode) {
+    resultArea.innerHTML = `
+      <div class="banner-enter rounded-xl p-4 sm:p-5" style="background: var(--new-dim); border: 1px solid var(--new);">
+        <div class="flex items-start gap-3">
+          <div class="shrink-0 w-9 h-9 rounded-full flex items-center justify-center" style="background: var(--new);">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" style="color:#0F1013" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="font-mono-brand text-xs uppercase tracking-widest mb-1" style="color: var(--new)">New Item</p>
+            <p class="text-sm" style="color: var(--text); opacity:.9">This barcode isn't in the manifest yet. Log it below.</p>
+            <p class="font-mono-brand text-xs mt-2" style="color: var(--muted)">BARCODE ${esc(barcode)}</p>
+          </div>
+        </div>
+        <form id="new-item-form" class="mt-4 pt-4 flex flex-col gap-2" style="border-top: 1px solid var(--new)">
+          <input id="new-name" type="text" required placeholder="Product name"
+            class="w-full rounded-lg px-3 py-2 text-sm bg-transparent" style="background: var(--surface-2); border: 1px solid var(--hairline); color: var(--text)">
+          <textarea id="new-memo" rows="2" placeholder="Memo / notes (optional)"
+            class="w-full rounded-lg px-3 py-2 text-sm bg-transparent resize-none" style="background: var(--surface-2); border: 1px solid var(--hairline); color: var(--text)"></textarea>
+          <div class="flex gap-2">
+            <button type="submit" class="flex-1 font-mono-brand text-sm py-2 rounded-lg" style="background: var(--new); color:#0F1013;">Save to Manifest</button>
+            <button type="button" id="cancel-new-btn" class="font-mono-brand text-sm px-3 py-2 rounded-lg" style="color: var(--muted)">Cancel</button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    document.getElementById("cancel-new-btn").addEventListener("click", clearResult);
+    document.getElementById("new-item-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = document.getElementById("new-name").value.trim();
+      const memo = document.getElementById("new-memo").value.trim();
+      if (!name) return;
+      const now = new Date().toISOString();
+      const item = { barcode, name, memo, createdAt: now, updatedAt: now, scanCount: 1 };
+      await putItem(item);
+      await refreshHistory();
+      renderMatchBanner(item);
+    });
+
+    document.getElementById("new-name").focus();
+  }
+
+  function renderErrorBanner(message) {
+    resultArea.innerHTML = `
+      <div class="banner-enter rounded-xl p-4 flex items-center gap-3" style="background: var(--error-dim); border: 1px solid var(--error);">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 shrink-0" style="color: var(--error)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+        <p class="text-sm" style="color: var(--text)">${esc(message)}</p>
+      </div>
+    `;
+  }
+
+  // ---------------------------------------------------------------------
+  // CORE VERIFICATION LOGIC
+  // ---------------------------------------------------------------------
+  async function handleBarcode(rawCode) {
+    const barcode = (rawCode || "").trim();
+    if (!barcode) {
+      renderErrorBanner("Enter or scan a barcode value first.");
+      return;
+    }
+    try {
+      const existing = await getItem(barcode);
+      if (existing) {
+        existing.scanCount = (existing.scanCount || 1) + 1;
+        existing.updatedAt = new Date().toISOString();
+        await putItem(existing);
+        await refreshHistory();
+        renderMatchBanner(existing);
+      } else {
+        renderNewBanner(barcode);
+      }
+    } catch (err) {
+      console.error(err);
+      renderErrorBanner("Could not read the local database. Try reloading the page.");
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // HISTORY RENDER
+  // ---------------------------------------------------------------------
+  async function refreshHistory() {
+    allItemsCache = await getAllItems();
+    allItemsCache.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
+    renderHistoryList(searchInput.value);
+  }
+
+  function renderHistoryList(filterText) {
+    const q = (filterText || "").trim().toLowerCase();
+    const items = q
+      ? allItemsCache.filter(it =>
+          it.barcode.toLowerCase().includes(q) ||
+          (it.name || "").toLowerCase().includes(q) ||
+          (it.memo || "").toLowerCase().includes(q))
+      : allItemsCache;
+
+    logCount.textContent = `${allItemsCache.length} ${allItemsCache.length === 1 ? "entry" : "entries"}`;
+
+    if (items.length === 0) {
+      historyList.innerHTML = "";
+      emptyState.style.display = "block";
+      emptyState.textContent = q ? "No entries match that filter." : "No entries yet. Scan or enter a barcode to begin logging.";
+      return;
+    }
+    emptyState.style.display = "none";
+
+    historyList.innerHTML = items.map(it => `
+      <div class="row-enter flex items-start justify-between gap-3 rounded-lg px-3 py-2.5" style="background: var(--surface-2); border-left: 3px solid var(--match);">
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="font-mono-brand text-xs" style="color: var(--muted)">${esc(it.barcode)}</span>
+            ${it.scanCount > 1 ? `<span class="font-mono-brand text-[10px] px-1.5 py-0.5 rounded" style="background: var(--surface); color: var(--match)">×${it.scanCount}</span>` : ""}
+          </div>
+          <p class="text-sm font-medium truncate mt-0.5" style="color: var(--text)">${esc(it.name)}</p>
+          ${it.memo ? `<p class="text-xs mt-0.5 truncate" style="color: var(--muted)">${esc(it.memo)}</p>` : ""}
+          <p class="font-mono-brand text-[10px] mt-1" style="color: var(--muted)">${formatTime(it.createdAt)}</p>
+        </div>
+        <button data-barcode="${esc(it.barcode)}" class="view-item-btn shrink-0 text-xs font-mono-brand px-2 py-1 rounded border" style="border-color: var(--hairline); color: var(--muted)">View</button>
+      </div>
+    `).join("");
+
+    historyList.querySelectorAll(".view-item-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const bc = btn.getAttribute("data-barcode");
+        const it = allItemsCache.find(x => x.barcode === bc);
+        if (it) {
+          renderMatchBanner(it);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      });
+    });
+  }
+
+  searchInput.addEventListener("input", () => renderHistoryList(searchInput.value));
+
+  // ---------------------------------------------------------------------
+  // MANUAL INPUT
+  // ---------------------------------------------------------------------
+  manualForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const val = manualInput.value;
+    manualInput.value = "";
+    handleBarcode(val);
+  });
+
+  // ---------------------------------------------------------------------
+  // CAMERA SCANNER (html5-qrcode) -> UPDATED FOR HIGH ACCURACY
+  // ---------------------------------------------------------------------
+  async function startScanner() {
+    if (cameraRunning) return;
+    if (typeof Html5Qrcode === "undefined") {
+      renderErrorBanner("Scanner library failed to load. Check your connection and reload.");
+      return;
+    }
+    try {
+      cameraPlaceholder.style.display = "none";
+      html5QrCode = new Html5Qrcode("reader", { verbose: false });
+      
+      // การตั้งค่าความแม่นยำสูงพิเศษสำหรับบาร์โค้ดแท่งยาวเรียวของสินค้าปลีก
+      const config = {
+        fps: 20, // ดึงภาพมาประมวลผลเร็วขึ้นต่อวินาที
+        qrbox: (viewfinderWidth, viewfinderHeight) => {
+          // แทนที่รูปสี่เหลี่ยมจัตุรัสเดิมด้วยเป้าทรงสี่เหลี่ยมผืนผ้าแนวนอนที่พอเหมาะกับบาร์โค้ดสินค้า
+          const width = Math.min(viewfinderWidth * 0.85, 320);
+          const height = 140;
+          return { width: width, height: height };
+        },
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true // ใช้ฮาร์ดแวร์มือถือช่วยตรวจจับหากรองรับ
+        }
+      };
+
+      // ขอสตรีมกล้องที่มีความละเอียดชัดระดับ Full HD หรือ HD เป็นอย่างน้อย
+      await html5QrCode.start(
+        { 
+          facingMode: "environment",
+          width: { min: 1280, ideal: 1920, max: 1920 },
+          height: { min: 720, ideal: 1080, max: 1080 }
+        },
+        config,
+        onScanSuccess,
+        () => {} // ignore per-frame decode failures
+      );
+
+      cameraRunning = true;
+      scanOverlay.classList.remove("hidden");
+      startBtn.classList.add("hidden");
+      stopBtn.classList.remove("hidden");
+      rescanBtn.classList.add("hidden");
+      maybeShowTorch();
+    } catch (err) {
+      console.error(err);
+      cameraPlaceholder.style.display = "flex";
+      renderErrorBanner("Camera access was denied or unavailable. Use manual entry below instead.");
+    }
+  }
+
+  async function stopScanner() {
+    if (!cameraRunning || !html5QrCode) return;
+    try {
+      await html5QrCode.stop();
+      html5QrCode.clear();
+    } catch (err) {
+      console.warn(err);
+    }
+    cameraRunning = false;
+    torchOn = false;
+    scanOverlay.classList.add("hidden");
+    torchBtn.classList.add("hidden");
+    cameraPlaceholder.style.display = "flex";
+    startBtn.classList.remove("hidden");
+    stopBtn.classList.add("hidden");
+    rescanBtn.classList.add("hidden");
+  }
+
+  async function onScanSuccess(decodedText) {
+    if (!cameraRunning) return;
+    try {
+      await html5QrCode.pause(true);
+    } catch (e) { /* no-op */ }
+    scanOverlay.classList.add("hidden");
+    stopBtn.classList.add("hidden");
+    rescanBtn.classList.remove("hidden");
+    if (navigator.vibrate) { try { navigator.vibrate(80); } catch (e) {} }
+    handleBarcode(decodedText);
+  }
+
+  async function resumeScanning() {
+    if (!html5QrCode) return;
+    try {
+      html5QrCode.resume();
+      scanOverlay.classList.remove("hidden");
+      stopBtn.classList.remove("hidden");
+      rescanBtn.classList.add("hidden");
+      clearResult();
+    } catch (err) {
+      console.warn(err);
+    }
+  }
+
+  async function maybeShowTorch() {
+    try {
+      const capabilities = html5QrCode.getRunningTrackCapabilities
+        ? html5QrCode.getRunningTrackCapabilities()
+        : null;
+      if (capabilities && capabilities.torch) {
+        torchBtn.classList.remove("hidden");
+      }
+    } catch (e) { /* torch not supported, ignore */ }
+  }
+
+  torchBtn.addEventListener("click", async () => {
+    if (!html5QrCode || !cameraRunning) return;
+    try {
+      torchOn = !torchOn;
+      await html5QrCode.applyVideoConstraints({ advanced: [{ torch: torchOn }] });
+      torchBtn.style.background = torchOn ? "var(--laser)" : "transparent";
+      torchBtn.style.color = torchOn ? "#14161A" : "var(--muted)";
+    } catch (err) {
+      console.warn("Torch not supported", err);
+    }
+  });
+
+  startBtn.addEventListener("click", startScanner);
+  stopBtn.addEventListener("click", stopScanner);
+  rescanBtn.addEventListener("click", resumeScanning);
+
+  window.addEventListener("beforeunload", () => {
+    if (cameraRunning && html5QrCode) {
+      try { html5QrCode.stop(); } catch (e) {}
+    }
+  });
+
+  // ---------------------------------------------------------------------
+  // INIT
+  // ---------------------------------------------------------------------
+  (async function init() {
+    try {
+      db = await openDB();
+      setDbStatus(true);
+      await refreshHistory();
+    } catch (err) {
+      console.error(err);
+      setDbStatus(false);
+      renderErrorBanner("IndexedDB is unavailable in this browser. Try a different browser or disable private browsing.");
+    }
+  })();
+})();
+</script>
+</body>
+</html>
